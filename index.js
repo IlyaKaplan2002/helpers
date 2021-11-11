@@ -1,11 +1,9 @@
-// import "data.json";
-
 const Pool = require("pg").Pool;
 const ConfigParser = require("configparser");
 
 const config = new ConfigParser();
 
-config.read("vk-postgres.config");
+// config.read("vk-postgres.config");
 
 const db_config = {
   user: config.get("VK", "username"),
@@ -29,12 +27,34 @@ const getIDsOfEmptyPosts = () => {
   });
 };
 
-const deleteFromPosts = () => {
-  const postIDs = getIDsOfEmptyPosts();
+const getIDsOfAllPosts = () => {
+  return new Promise(function (resolve, reject) {
+    pool.query(`select post_id from posts;`, (err, res) => {
+      if (err) reject(err);
+      else resolve(res.rows.map((item) => item.post_id));
+    });
+  });
+};
 
+const getIDsFromKeysToPosts = () => {
+  return new Promise(function (resolve, reject) {
+    pool.query(`select post_id from posts_to_keys;`, (err, res) => {
+      if (err) reject(err);
+      else resolve(res.rows.map((item) => item.post_id));
+    });
+  });
+};
+
+const getDifference = (array, array1) => {
+  return array.filter((item) => !array1.include(item));
+};
+
+const deleteFromPosts = (postIDs) => {
   for (const id of postIDs) {
     pool.query(`delete from keys_to_posts where post_id = ${id}`);
   }
 };
 
-deleteFromPosts();
+deleteFromPosts(getIDsOfEmptyPosts());
+
+deleteFromPosts(getDifference(getIDsOfAllPosts(), getIDsFromKeysToPosts()));
